@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ABLKM — Angular-Bucket Lattice Key Mapping</title>
+  <meta name="description" content="Interactive visualization of the Angular-Bucket Lattice Key Mapping (ABLKM) cryptographic algorithm. Explore how keys are stored using angular positions on a lattice relative to a secret reference point." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="bg-grid"></div>
+
+  <!-- Header -->
+  <header>
+    <div class="header-content">
+      <div class="logo">
+        <div class="logo-icon">⬡</div>
+        <span>ABLKM</span>
+      </div>
+      <div class="header-subtitle">Angular-Bucket Lattice Key Mapping</div>
+      <div class="header-badge">Quantum-Resistant · Lattice-Based</div>
+    </div>
+  </header>
+
+  <!-- Main Layout -->
+  <main>
+    <div class="layout">
+
+      <!-- Left Panel: Controls -->
+      <aside class="panel controls-panel" id="controls-panel">
+        <h2 class="panel-title">⚙ Configuration</h2>
+
+        <div class="control-group">
+          <label for="grid-size">Grid Size (N×N)</label>
+          <div class="slider-row">
+            <input type="range" id="grid-size" min="3" max="10" value="6" />
+            <span class="slider-value" id="grid-size-val">6</span>
+          </div>
+          <div class="hint">Total points: <strong id="total-points">36</strong></div>
+        </div>
+
+        <div class="control-group">
+          <label for="ppb">Points per Bucket</label>
+          <div class="slider-row">
+            <input type="range" id="ppb" min="1" max="16" value="4" />
+            <span class="slider-value" id="ppb-val">4</span>
+          </div>
+          <div class="hint">Buckets: <strong id="num-buckets">9</strong></div>
+        </div>
+
+        <div class="control-group">
+          <label>Reference Point (Secret 🔒)</label>
+          <div class="ref-coords">
+            <div class="coord-item">
+              <span class="coord-label">X</span>
+              <input type="number" id="ref-x" value="2.3" step="0.1" />
+            </div>
+            <div class="coord-item">
+              <span class="coord-label">Y</span>
+              <input type="number" id="ref-y" value="2.7" step="0.1" />
+            </div>
+          </div>
+          <button class="btn btn-secondary" id="random-ref-btn">🎲 Randomize Ref</button>
+          <button class="btn btn-secondary" id="run-qkd-btn" style="margin-top: 10px; border-color: #bb86fc; color: #bb86fc;">🌌 Establish QKD Link</button>
+        </div>
+
+        <hr class="divider" />
+
+        <h2 class="panel-title">🔑 Key Operations</h2>
+
+        <div class="control-group">
+          <label for="key-input">Key</label>
+          <input type="text" id="key-input" class="text-input" placeholder="e.g. alice_pubkey" value="alice_pubkey" />
+        </div>
+        <div class="control-group">
+          <label for="value-input">Value / Secret</label>
+          <input type="text" id="value-input" class="text-input" placeholder="e.g. secret-token-abc" value="my-super-secret-42" />
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" id="store-btn">⬆ Store Key</button>
+          <button class="btn btn-accent" id="retrieve-btn">⬇ Retrieve</button>
+          <button class="btn btn-danger" id="delete-btn">✕ Delete</button>
+        </div>
+
+        <div id="operation-result" class="operation-result hidden"></div>
+
+        <hr class="divider" />
+
+        <h2 class="panel-title">🛡 Attack Simulator</h2>
+        <p class="hint">Simulate an attacker who doesn't know the secret reference point.</p>
+        <button class="btn btn-warning" id="attack-btn">⚡ Try to Crack</button>
+        <div id="attack-result" class="operation-result hidden"></div>
+
+        <hr class="divider" />
+        <button class="btn btn-secondary" id="reset-btn" style="width:100%">↺ Reset All</button>
+      </aside>
+
+      <!-- Center: Canvas -->
+      <section class="canvas-section">
+        <div class="canvas-wrapper">
+          <canvas id="lattice-canvas"></canvas>
+          <div class="canvas-legend" id="canvas-legend"></div>
+        </div>
+        <div class="canvas-controls">
+          <button class="icon-btn active" id="show-buckets-btn" title="Toggle bucket sectors">⬡ Sectors</button>
+          <button class="icon-btn active" id="show-angles-btn" title="Toggle angle lines">/ Angles</button>
+          <button class="icon-btn active" id="show-ref-btn" title="Toggle reference point">⊕ Ref Point</button>
+          <button class="icon-btn" id="show-labels-btn" title="Toggle labels">Aa Labels</button>
+        </div>
+      </section>
+
+      <!-- Right Panel: Stats & Buckets -->
+      <aside class="panel stats-panel" id="stats-panel">
+        <h2 class="panel-title">📊 Algorithm Stats</h2>
+        <div class="stats-grid" id="stats-grid">
+          <!-- filled by JS -->
+        </div>
+
+        <hr class="divider" />
+
+        <h2 class="panel-title">🗑 Bucket Map</h2>
+        <div class="bucket-list" id="bucket-list">
+          <!-- filled by JS -->
+        </div>
+      </aside>
+
+    </div>
+  </main>
+
+  <!-- Tooltip -->
+  <div class="tooltip" id="tooltip"></div>
+
+  <!-- Flash notification -->
+  <div class="flash" id="flash"></div>
+
+  <!-- QKD Modal -->
+  <div class="modal-overlay hidden" id="qkd-modal-overlay">
+    <div class="modal-content qkd-modal">
+      <div class="modal-header">
+        <h2 style="color: #bb86fc;">🌌 BB84 Quantum Key Distribution</h2>
+        <button class="icon-btn" id="close-qkd-btn">✕</button>
+      </div>
+      <div class="modal-body qkd-body">
+        <p class="hint">Simulating a quantum channel to securely negotiate the Lattice Reference Point ($P_{ref}$).</p>
+        
+        <div class="qkd-stage" id="qkd-alice">
+          <h3>👩‍💻 Alice (Sender)</h3>
+          <div class="qkd-label">Raw Bits</div>
+          <div class="qkd-row" id="alice-bits"></div>
+          <div class="qkd-label">Prepared Bases</div>
+          <div class="qkd-row" id="alice-bases"></div>
+        </div>
+
+        <div class="qkd-channel">
+          <button class="btn btn-primary" id="qkd-step-btn" style="width: 100%;">🚀 Send Qubits</button>
+        </div>
+
+        <div class="qkd-stage" id="qkd-bob">
+          <h3>👨‍💻 Bob (Receiver)</h3>
+          <div class="qkd-label">Measurement Bases</div>
+          <div class="qkd-row" id="bob-bases"></div>
+          <div class="qkd-label">Measured Bits</div>
+          <div class="qkd-row" id="bob-bits"></div>
+        </div>
+
+        <div class="qkd-results hidden" id="qkd-results">
+          <h3>🔑 Key Sifting Results</h3>
+          <div class="qkd-label">Sifted Bits (Matching Bases)</div>
+          <div class="qkd-row" id="sifted-key"></div>
+          <div class="qkd-hash">Session AES Key: <span id="qkd-hash-val" style="color:#03dac6;">...</span></div>
+          <button class="btn btn-accent" id="qkd-apply-btn" style="margin-top:20px; width:100%;">Use Shared Key to Set Secret P_ref</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
